@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DBSCAN post read</title>
+<style>
+
+:root{
+  --bg:#fafaf9;--panel:#ffffff;--alt:#f4f4f5;--line:#d4d4d8;--ink:#18181b;--body:#3f3f46;--muted:#62626b;
+  --or:#ea580c;--or-d:#c2410c;--or-l:#fed7aa;--or-xl:#fff7ed;--ch:#27272a;--gr:#a1a1aa;
+  --r:14px;--shadow:0 1px 2px rgba(24,24,27,.06),0 6px 20px rgba(24,24,27,.05);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--body);font:17px/1.7 Georgia,"Iowan Old Style","Times New Roman",serif}
+h1,h2,h3,h4,nav,.ui,button,label,table,.tag,.stat,summary,input{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--or-d)}
+:focus-visible{outline:3px solid var(--or);outline-offset:2px;border-radius:4px}
+#bar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--or);z-index:60}
+nav{position:sticky;top:0;z-index:50;background:rgba(250,250,249,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav .in{max-width:1000px;margin:auto;display:flex;align-items:center;gap:6px;padding:10px 20px;overflow-x:auto;white-space:nowrap}
+nav b{color:var(--ink);font-size:14px;margin-right:10px}
+nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:5px 10px;border-radius:99px}
+nav a:hover,nav a.on{background:var(--ink);color:#fff}
+header.hero{background:linear-gradient(135deg,#27272a 0%,#3f3f46 100%);color:#fff;padding:84px 20px 76px;position:relative;overflow:hidden}
+header.hero:after{content:"";position:absolute;right:-90px;top:-90px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(234,88,12,.85),rgba(234,88,12,0) 68%)}
+.hero .in{max-width:820px;margin:auto;position:relative;z-index:1}
+.tag{display:inline-block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#fdba74;font-weight:700}
+.hero h1{font-size:clamp(34px,6vw,58px);line-height:1.08;margin:14px 0 18px;letter-spacing:-.02em}
+.hero p{font-size:20px;color:#e4e4e7;max-width:640px;margin:0}
+main{max-width:820px;margin:auto;padding:0 20px 40px}
+section{padding:56px 0 8px}
+section>.kick{font:700 12px system-ui;letter-spacing:.14em;text-transform:uppercase;color:var(--or-d)}
+h2{font-size:clamp(26px,4vw,36px);line-height:1.2;color:var(--ink);margin:6px 0 18px;letter-spacing:-.01em}
+h3{font-size:21px;color:var(--ink);margin:30px 0 8px}
+p{margin:0 0 16px}
+.lead{font-size:19px;color:var(--ink)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:22px;margin:24px 0}
+.card h4{margin:0 0 4px;font-size:16px;color:var(--ink)}
+.card .cap{font:14px/1.5 system-ui;color:var(--muted);margin:0 0 14px}
+.story{border-left:5px solid var(--or);background:var(--or-xl);border-radius:0 var(--r) var(--r) 0;padding:22px 24px;margin:20px 0}
+.story blockquote{margin:12px 0;padding:0 0 0 16px;border-left:3px solid var(--or-l);color:var(--ink);font-style:italic}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.mini{background:var(--alt);border-radius:12px;padding:16px;font:15px/1.5 system-ui}
+.mini b{display:block;color:var(--ink);margin-bottom:4px}
+.mini .n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--or);color:#fff;font-weight:700;font-size:13px;margin-bottom:8px}
+.formula{background:var(--ch);color:#f4f4f5;border-radius:12px;padding:18px 20px;margin:18px 0;overflow-x:auto;font:italic 19px/1.8 "Cambria Math",Cambria,Georgia,serif;text-align:center}
+.formula small{display:block;font:13px system-ui;color:#d4d4d8;font-style:normal;margin-top:6px}
+.formula em{color:#fdba74}
+.call{border:1px solid var(--or-l);background:var(--or-xl);border-radius:12px;padding:14px 18px;margin:18px 0;font:15px/1.6 system-ui;color:var(--ink)}
+.call b{color:var(--or-d)}
+.stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:18px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.stat .v{font-size:28px;font-weight:800;color:var(--ink);line-height:1.1}
+.stat .v.o{color:var(--or-d)}
+.stat .l{font-size:13px;color:var(--muted);margin-top:4px}
+canvas{display:block;width:100%;border-radius:10px;background:#fff;border:1px solid var(--line)}
+.ctrls{display:grid;gap:10px 18px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:14px;font:14px system-ui}
+.ctrls label{display:block;color:var(--ink);font-weight:600}
+.ctrls label span{float:right;color:var(--or-d);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--or)}
+input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--gr);border-radius:8px;font-size:15px}
+.seg{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--alt);padding:4px;border-radius:99px;margin-bottom:12px}
+.seg button,.btn{font-size:14px;font-weight:600;border:0;background:transparent;color:var(--body);padding:7px 14px;border-radius:99px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.btn{background:var(--or);color:#fff;border-radius:10px}
+.btn:hover{background:var(--or-d)}
+.btn.ghost{background:var(--alt);color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font:13px system-ui;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.read{font:14px/1.6 system-ui;color:var(--ink);background:var(--alt);border-radius:10px;padding:10px 14px;margin-top:12px;min-height:44px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;line-height:1.5}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--alt);color:var(--ink);font-weight:700}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:16px 0}
+.tw table{min-width:520px}
+.tw tr:last-child td{border-bottom:0}
+.sb{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--alt);min-width:120px}
+.sb span{display:block;height:100%}
+.c0{background:var(--or)}.c1{background:var(--ch)}.c2{background:var(--gr)}
+details{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:16px 0}
+summary{cursor:pointer;padding:12px 16px;font-weight:700;font-size:15px;color:var(--ink)}
+details[open] summary{border-bottom:1px solid var(--line)}
+pre{margin:0;padding:16px;overflow-x:auto;background:#27272a;color:#f4f4f5;border-radius:0 0 12px 12px;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace}
+pre.out{background:#3f3f46;color:#fed7aa;border-radius:0;border-top:1px solid #52525b}
+.q{border:1px solid var(--line);border-left:5px solid var(--or);border-radius:12px;background:#fff;padding:18px 20px;margin:26px 0}
+.q .qh{font:700 12px system-ui;letter-spacing:.1em;text-transform:uppercase;color:var(--or-d)}
+.q p.qt{font:600 17px/1.5 system-ui;color:var(--ink);margin:6px 0 12px}
+.q button.o{display:block;width:100%;text-align:left;font:15px/1.45 system-ui;color:var(--ink);background:var(--alt);border:2px solid transparent;border-radius:10px;padding:11px 14px;margin:8px 0;cursor:pointer}
+.q button.o:hover:not(:disabled){border-color:var(--gr)}
+.q button.o.ok{border-color:var(--ch);background:#e4e4e7}
+.q button.o.bad{border-color:var(--or);background:var(--or-xl)}
+.q .fb{font:15px/1.6 system-ui;margin-top:10px;display:none;padding:12px 14px;border-radius:10px;background:var(--alt);color:var(--ink)}
+.q .fb b{color:var(--or-d)}
+.flow{display:block;margin:auto;max-width:100%}
+ul.chk{list-style:none;padding:0;margin:0}
+ul.chk li{position:relative;padding:10px 0 10px 34px;border-bottom:1px solid var(--line);font-size:16.5px}
+ul.chk li:before{content:"";position:absolute;left:4px;top:17px;width:14px;height:14px;border-radius:4px;background:var(--or)}
+footer{background:var(--ch);color:#d4d4d8;text-align:center;padding:34px 20px;font:14px system-ui;margin-top:40px}
+footer b{color:#fff;display:block;font-size:16px;margin-bottom:4px}
+@media(max-width:600px){body{font-size:16px}.card{padding:16px}header.hero{padding:60px 20px 54px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+.heat td{text-align:center;font-variant-numeric:tabular-nums}
+.heat td:first-child,.heat th:first-child{text-align:left}
+.lg{display:grid;gap:12px;grid-template-columns:repeat(4,1fr)}
+.lg figure{margin:0}
+.lg figcaption{font:12px/1.4 system-ui;color:var(--muted);margin-top:4px}
+.lg h5{font:700 13px system-ui;margin:14px 0 6px;color:var(--ink);grid-column:1/-1}
+.log{font:14px/1.7 system-ui;color:var(--ink);margin-top:10px}
+.k{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:5px}
+.k.core{background:var(--or)}.k.border{border:2px solid var(--or);background:#fff}.k.noise{background:none;color:#dc2626;font-weight:900;line-height:12px;width:auto}
+select{width:100%;padding:9px 10px;border:1px solid var(--gr);border-radius:8px;font-size:15px;background:#fff}
+.bars .row{display:grid;grid-template-columns:150px 1fr 56px;gap:10px;align-items:center;font:14px system-ui;padding:5px 0}
+.bars .bar{height:16px;border-radius:5px;background:var(--or)}
+.bars .bar.gr{background:var(--ch)}
+@media(max-width:700px){.lg{grid-template-columns:repeat(2,1fr)}.bars .row{grid-template-columns:110px 1fr 46px}}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<nav aria-label="Sections"><div class="in" id="nav"><b>DBSCAN</b></div></nav>
+
+<header class="hero"><div class="in">
+  <span class="tag">Discovering clusters of any shape</span>
+  <h1>DBSCAN post read</h1>
+  <p>Clusters as dense regions, and the honest ability to say "this point belongs to no group": the method behind a ranked review queue for ShopSphere's fraud team.</p>
+</div></header>
+
+<main>
+
+<section id="story" data-t="Story">
+  <div class="kick">The problem</div>
+  <h2>The accounts that belong nowhere</h2>
+  <div class="story">
+    <p>A message from the fraud team landed on Vikram's phone, and he forwarded it to Anjali. Imran, the fraud team lead, joined the call the next morning.</p>
+    <blockquote>"We have two kinds of problem accounts: <b>resellers</b> who buy in bulk to resell elsewhere, and <b>scripted accounts</b> that click and visit in robotic patterns. They don't behave like any real shopper. But your segmentations are no use to me. The GMM puts those accounts into a segment and says it is 90% sure. The Ward tree gives some of them tiny branches and attaches others to big groups. Last year's K-Means dragged its centres toward them. Nothing ever says 'this account fits nowhere'."</blockquote>
+    <p>The accounts he cares about do not sit in neat round clouds. Many lie along <b>thin trails</b> where clicks and visits grow together in unnatural proportions.</p>
+    <blockquote>"I have two reviewers. I can look at a few hundred accounts a week, not thousands. I need a list of the <b>most unusual accounts, ranked</b>. And ideally the method should also tell us which regular customers form <b>real, dense groups</b>, whatever their shape."</blockquote>
+  </div>
+  <p class="lead">Every method used so far assigns <b>every</b> point to a group. Imran wants a method that starts from <b>density</b>: where lots of customers behave alike, there is a group, and where a customer has no company, they belong to <b>no group at all</b>. That method is <b>DBSCAN</b>.</p>
+</section>
+
+<section id="earlier" data-t="Earlier methods">
+  <div class="kick">1 · What was missing</div>
+  <h2>What the earlier methods assumed</h2>
+  <div class="tw"><table><thead><tr><th>Method</th><th>Every point gets a group?</th><th>Cluster shape it can capture</th><th>Needs K?</th></tr></thead><tbody>
+    <tr><td><b>K-Means / K-Means++</b></td><td>Yes</td><td>Round, similar sized</td><td>Yes</td></tr>
+    <tr><td><b>GMM</b></td><td>Yes (with probabilities)</td><td>Ellipses</td><td>Yes</td></tr>
+    <tr><td><b>Hierarchical (Ward)</b></td><td>Yes</td><td>Compact (single linkage can follow curves but chains through noise)</td><td>Chosen after, by cutting</td></tr></tbody></table></div>
+  <p>Two things are missing from this table: <b>arbitrary shapes</b>, such as crescents, rings and trails, and <b>noise</b>: the ability to say "this point is not in any cluster".</p>
+  <h3>ShopSphere's customers, again</h3>
+  <p>The 2,500 customers have 6 numeric features, standardised (distances are at the heart of DBSCAN, so a feature with big numbers like spend must not dominate one with small numbers like visits). In a 2D PCA view, most customers form <b>one dense mass</b>, with a scattering of points lying far from it.</p>
+  <div class="grid g2">
+    <div class="mini"><b>What earlier methods did with the far points</b>Either gave them a cluster of their own (wasting a cluster), or pulled a centroid or covariance toward them.</div>
+    <div class="mini"><b>What we need</b>A method for which <b>sparse regions are simply "not part of a cluster"</b>.</div>
+  </div>
+  <details><summary>Code: load and standardise</summary>
+<pre>df = pd.read_csv("E-commerce.csv").set_index("ID")     # the identifier is not a feature
+features = df.select_dtypes("number")
+X = StandardScaler().fit_transform(features.values)    # (2500, 6)
+n_feat = X.shape[1]
+Z_pca = PCA(n_components=2, random_state=0).fit_transform(X)   # a 2D view only; DBSCAN uses all 6 features</pre></details>
+</section>
+
+<section id="idea" data-t="The idea">
+  <div class="kick">2 · The idea</div>
+  <h2>Clusters are dense regions</h2>
+  <p><b>DBSCAN</b> stands for <i>Density-Based Spatial Clustering of Applications with Noise</i>. It is built on one picture:</p>
+  <div class="formula" style="font-size:18px">A cluster is a region where points are <em>packed closely together</em>, separated from other clusters by regions where they are <em>sparse</em>.</div>
+  <div class="grid g2">
+    <div class="mini"><b>eps (ε)</b>The radius of the neighbourhood around a point.</div>
+    <div class="mini"><b>min_samples</b>The number of points (counting the point itself) that must lie within eps for the neighbourhood to count as <b>dense</b>.</div>
+  </div>
+  <h3>Three kinds of points</h3>
+  <div class="tw"><table><thead><tr><th>Type</th><th>Definition</th></tr></thead><tbody>
+    <tr><td><span class="k core"></span><b>Core</b></td><td>Has at least <code>min_samples</code> points (itself included) within distance <code>eps</code>. It sits in a dense area.</td></tr>
+    <tr><td><span class="k border"></span><b>Border</b></td><td>Is <b>not</b> core, but lies within <code>eps</code> of at least one core point. It is on the edge of a cluster.</td></tr>
+    <tr><td><span class="k noise">×</span><b>Noise</b></td><td>Neither core nor border: no dense neighbourhood and no core neighbour, so it belongs to no cluster (label <b>−1</b>).</td></tr></tbody></table></div>
+  <p>Once eps and min_samples are fixed, every point's type is <b>fully determined</b> by the data.</p>
+
+  <div class="card">
+    <h4>DBSCAN playground</h4>
+    <p class="cap">Pick a dataset and move the sliders. Filled dots are core points, hollow circles are border points, red crosses are noise. Click the plot: <b>Inspect a point</b> shows its neighbourhood; <b>Place a new account</b> applies the nearest-core-point rule. All datasets are simulated live in your browser.</p>
+    <div class="seg" role="group" aria-label="Dataset" id="pgD"><button data-d="small" aria-pressed="true">Two groups + scatter</button><button data-d="moons" aria-pressed="false">Moons</button><button data-d="blobs" aria-pressed="false">Blobs + noise</button></div>
+    <canvas id="cvPg" role="img" aria-label="Scatter plot with points marked as core, border or noise according to the eps and min_samples sliders" style="cursor:crosshair"></canvas>
+    <div class="legend"><span><span class="k core"></span>core</span><span><span class="k border"></span>border</span><span><span class="k noise">×</span>noise</span><span>dashed circle = eps-neighbourhood</span></div>
+    <div class="ctrls">
+      <label>eps <span id="pgEV"></span><input id="pgE" type="range" min="0.05" max="1.5" step="0.01" value="0.5"></label>
+      <label>min_samples <span id="pgMV"></span><input id="pgM" type="range" min="2" max="20" step="1" value="5"></label>
+    </div>
+    <div class="seg" role="group" aria-label="Click mode" id="pgMode" style="margin-top:12px"><button data-m="inspect" aria-pressed="true">Inspect a point</button><button data-m="new" aria-pressed="false">Place a new account</button></div>
+    <div class="read" id="pgR" aria-live="polite"></div>
+  </div>
+  <div class="q" data-q="0"></div>
+</section>
+
+<section id="grow" data-t="How clusters grow">
+  <div class="kick">3 · Density connection</div>
+  <h2>How clusters grow</h2>
+  <p>Knowing the point types is not enough. DBSCAN must decide which points form <b>the same cluster</b>.</p>
+  <ul>
+    <li>A point q is <b>directly density-reachable</b> from a core point p if q is within eps of p.</li>
+    <li>Two points are <b>density-connected</b> if a <b>chain of core points</b>, each within eps of the next, links them. A border point can hang off the end of a chain.</li>
+    <li>A <b>cluster</b> is a maximal set of density-connected points.</li>
+  </ul>
+  <h3>The algorithm</h3>
+  <ol>
+    <li>Pick an unvisited <b>core</b> point and start a new cluster with it.</li>
+    <li>Add all points within eps of it. Whenever a newly added point is itself core, add <b>its</b> neighbours too. Keep expanding until no new points can be reached. Border points are added but do not expand the cluster.</li>
+    <li>Pick another unvisited core point and repeat.</li>
+    <li>Points never reached from any core point are <b>noise</b> (label −1).</li>
+  </ol>
+  <p>Clusters grow like a <b>spreading stain</b>, so they can take any shape: as long as dense stepping stones connect them, the cluster continues.</p>
+  <div class="card">
+    <h4>Watch a crescent grow</h4>
+    <p class="cap">Moons dataset, eps = 0.20, min_samples = 5. Points are coloured in the order the algorithm reaches them. Grey points have not been reached yet.</p>
+    <canvas id="cvGr" role="img" aria-label="Moons dataset with points revealed in the order DBSCAN reaches them"></canvas>
+    <div class="ctrls"><label>Points reached <span id="grV"></span><input id="grS" type="range" min="0" max="100" step="1" value="0"></label></div>
+    <div style="margin-top:12px"><button class="btn" id="grPlay">▶ Play</button> <button class="btn ghost" id="grReset">Reset</button></div>
+    <div class="read" id="grR" aria-live="polite"></div>
+  </div>
+
+  <h3>A tiny worked example</h3>
+  <p>Five points on a line at positions 0, 1, 2, 3, 10, with <b>eps = 1.5</b> and <b>min_samples = 3</b>.</p>
+  <div class="tw"><table class="heat"><thead><tr><th>Point</th><th>Neighbours (≤ 1.5, itself included)</th><th>Count</th><th>Core?</th></tr></thead><tbody>
+    <tr><td>0</td><td>0, 1</td><td>2</td><td>No</td></tr><tr><td>1</td><td>0, 1, 2</td><td>3</td><td><b>Yes</b></td></tr><tr><td>2</td><td>1, 2, 3</td><td>3</td><td><b>Yes</b></td></tr><tr><td>3</td><td>2, 3</td><td>2</td><td>No</td></tr><tr><td>10</td><td>10</td><td>1</td><td>No</td></tr></tbody></table></div>
+  <div class="card">
+    <h4>Trace the algorithm</h4>
+    <canvas id="cvWk" role="img" aria-label="Five points on a number line being assigned to cluster 0 step by step"></canvas>
+    <div class="ctrls"><label>Step <span id="wkV"></span><input id="wkS" type="range" min="0" max="5" step="1" value="0"></label></div>
+    <div class="read" id="wkR" aria-live="polite"></div>
+  </div>
+  <div class="call"><b>Density connection.</b> Points 0 and 3 are 3 apart, far more than eps, yet they end up in the same cluster, linked through the chain of core points 1 and 2. That is why DBSCAN clusters can have any shape. Point 10 is never reached, so it stays noise.</div>
+  <details><summary>Code: DBSCAN from scratch (about 20 lines)</summary>
+<pre>def dbscan_scratch(X, eps, min_samples):
+    n = len(X)
+    D = squareform(pdist(X))
+    neighbours = [np.where(D[i] &lt;= eps)[0] for i in range(n)]          # includes the point itself
+    is_core = np.array([len(nb) &gt;= min_samples for nb in neighbours])
+    labels = np.full(n, -1)                                            # -1 = noise until reached
+    cluster = 0
+    for i in range(n):
+        if labels[i] != -1 or not is_core[i]:
+            continue                                                   # start only from unlabelled core points
+        labels[i] = cluster
+        queue = [i]
+        while queue:                                                   # grow the cluster
+            p = queue.pop()
+            for q in neighbours[p]:
+                if labels[q] == -1:
+                    labels[q] = cluster                                # core or border, both join
+                    if is_core[q]:
+                        queue.append(q)                                # only core points keep expanding
+        cluster += 1
+    return labels, is_core</pre></details>
+  <p>On the lecture's 132-point dataset, this hand-written version agrees with scikit-learn exactly: same core points, same noise points, and cluster agreement (ARI) of 1.0. The only possible difference is a <b>border point</b> lying within reach of two clusters, which joins whichever cluster reaches it first. That is the only non-deterministic part of DBSCAN.</p>
+  <div class="q" data-q="1"></div>
+</section>
+
+<section id="shapes" data-t="Shapes">
+  <div class="kick">4 · Head to head</div>
+  <h2>Arbitrary shapes: DBSCAN vs the rest</h2>
+  <p>Four methods against three datasets: two crescents, a ring around a smaller circle, and round blobs with 40 scattered noise points. Notice that DBSCAN is the only one that does not receive K.</p>
+  <div class="card">
+    <h4>3 datasets × 4 methods</h4>
+    <p class="cap">Computed live on freshly simulated versions of the lecture's datasets. K-Means, Ward and GMM get K (2, 2, 3); DBSCAN gets only eps and min_samples. Red crosses are noise.</p>
+    <div class="lg" id="lg"></div>
+  </div>
+  <ul>
+    <li><b>Moons and ring:</b> K-Means, Ward and GMM cut straight through. DBSCAN follows each crescent and separates the ring from its core, because the points along each shape are linked by chains of dense neighbours.</li>
+    <li><b>Blobs with noise:</b> K-Means, Ward and GMM must assign the scattered points to a cluster, which pulls centres and covariances. DBSCAN leaves them as <b>noise</b> and keeps the blobs clean.</li>
+    <li>DBSCAN was given <b>no K</b>: the number of clusters came out of the density structure. (These are typical results; check the plots from your own run.)</li>
+  </ul>
+</section>
+
+<section id="tune" data-t="Choosing eps">
+  <div class="kick">5 · Hyperparameters</div>
+  <h2>Choosing eps and min_samples</h2>
+  <p>DBSCAN has only two hyperparameters, but they matter a great deal.</p>
+  <h3>min_samples</h3>
+  <ul>
+    <li>Rule of thumb: <b>at least d + 1</b>, where d is the number of features, and often about <b>2d</b>.</li>
+    <li>Larger values need more evidence to call a region dense, which suits <b>noisier</b> data and gives fewer, more conservative clusters.</li>
+    <li>ShopSphere has 6 features, so a good starting point is 2d = <b>12</b>.</li>
+  </ul>
+  <h3>eps: the k-distance plot</h3>
+  <p>With min_samples fixed, a point is core when its <b>min_samples-th nearest neighbour</b> (counting itself) lies within eps. So:</p>
+  <ol>
+    <li>For every point, compute the distance to its min_samples-th nearest neighbour (its <b>k-distance</b>).</li>
+    <li><b>Sort</b> these distances and plot them.</li>
+    <li>Dense regions have small k-distances; isolated points have large ones. The curve rises slowly then <b>bends sharply upward</b>. The value at the bend is a good eps: below it most points are core, above it points sit in sparse regions (likely noise).</li>
+  </ol>
+  <div class="card">
+    <h4>k-distance plot and its effect</h4>
+    <p class="cap">Blobs + noise dataset (simulated live). Move eps along the curve and watch the clustering on the right. A knee is rarely razor sharp, so treat the knee as a starting point.</p>
+    <div class="grid g2" style="align-items:start"><canvas id="cvKd" role="img" aria-label="Sorted k-distance curve with the chosen eps drawn as a horizontal line"></canvas><canvas id="cvKs" role="img" aria-label="DBSCAN result for the chosen eps"></canvas></div>
+    <div class="ctrls">
+      <label>min_samples <span id="kdMV"></span><input id="kdM" type="range" min="3" max="20" step="1" value="8"></label>
+      <label>eps <span id="kdEV"></span><input id="kdE" type="range" min="0.1" max="2" step="0.01" value="0.6"></label>
+    </div>
+    <div style="margin-top:12px"><button class="btn" id="kdKnee">Set eps to the knee</button></div>
+    <div class="read" id="kdR" aria-live="polite"></div>
+  </div>
+  <div class="q" data-q="2"></div>
+  <details><summary>Code: k-distance and the knee heuristic</summary>
+<pre>MIN_SAMPLES = max(2 * n_feat, n_feat + 1)                  # 12 for 6 features
+nn = NearestNeighbors(n_neighbors=MIN_SAMPLES).fit(X)
+dist, _ = nn.kneighbors(X)                                  # column 0 is the point itself (distance 0)
+kdist_each = dist[:, -1]                                    # distance to the MIN_SAMPLES-th point, counting itself
+kdist = np.sort(kdist_each)
+
+def knee_value(kd):
+    """Point of the sorted curve farthest below the straight line joining its two ends."""
+    x = np.linspace(0, 1, len(kd))
+    y = (kd - kd.min()) / (kd.max() - kd.min())
+    return kd[int(np.argmax(x - y))]</pre></details>
+
+  <h3>Sweep a grid of settings</h3>
+  <p>Instead of trusting one number, check <b>what each eps does</b>: how many clusters appear, and what share of points becomes noise.</p>
+  <div class="card">
+    <h4>Sensitivity grid</h4>
+    <p class="cap">Same blobs + noise dataset. Left: number of clusters. Right: noise as % of points. Rows are min_samples, columns are eps.</p>
+    <div class="grid g2"><div><b class="ui" style="font:700 14px system-ui">Number of clusters</b><div class="tw"><table class="heat" id="gC"></table></div></div><div><b class="ui" style="font:700 14px system-ui">Noise (% of points)</b><div class="tw"><table class="heat" id="gN"></table></div></div></div>
+  </div>
+  <ul>
+    <li><b>Small eps:</b> most points fail the density test, so lots of noise and many small clusters.</li>
+    <li><b>Large eps:</b> everything becomes density-connected, so noise vanishes and clusters merge into one.</li>
+    <li><b>Larger min_samples</b> demands more neighbours, so noise rises and clusters shrink.</li>
+    <li>A small change in eps can change the picture a lot. That sensitivity is DBSCAN's best-known weakness, which is why we look at a <b>grid</b>, not one setting.</li>
+  </ul>
+</section>
+
+<section id="shop" data-t="ShopSphere results">
+  <div class="kick">6 · The review queue</div>
+  <h2>ShopSphere: segments, noise and a review queue</h2>
+  <p>Imran's goals: a <b>small, reviewable</b> set of unusual accounts, and a description of the dense groups of ordinary customers. With 6 features, min_samples = 12. The knee heuristic on ShopSphere's k-distance curve suggests <b>eps ≈ 1.42</b>.</p>
+  <div class="call"><b>Why not just eps = 1.0?</b> The earlier version of the analysis used eps = 1.0 with min_samples = 12 and labelled about <b>20% of customers as noise</b>, far too many for two reviewers. The target is closer to a few percent. The rule used here: take the smallest eps (for min_samples = 12) that leaves at most 5% noise.</div>
+  <div class="stats">
+    <div class="stat"><div class="v">1.25</div><div class="l">chosen eps (min_samples = 12)</div></div>
+    <div class="stat"><div class="v">1</div><div class="l">dense cluster found</div></div>
+    <div class="stat"><div class="v o">124</div><div class="l">noise customers (5.0%)</div></div>
+    <div class="stat"><div class="v">2,376</div><div class="l">customers in the cluster</div></div>
+  </div>
+  <p>Most customers fall into one dense group, and a small share is flagged as noise. A useful check: the noise should sit in the <b>thin, outlying parts</b> of the map. If noise appears deep inside a dense region, eps is probably too small. (As always, PCA and UMAP are 2D views; the clustering used all 6 features.)</p>
+
+  <h3>What do the flagged accounts look like?</h3>
+  <p>Imran wants a <b>ranked</b> list. Noise points are ranked by their k-distance: the larger it is, the more isolated the account.</p>
+  <div class="card">
+    <h4>Flagged vs clustered customers</h4>
+    <p class="cap">Average behaviour, and the ratio flagged ÷ clustered.</p>
+    <div class="bars" id="cmpB"></div>
+    <div class="tw"><table class="heat" id="cmpT"></table></div>
+  </div>
+  <p>The strongest gap by far is <b>discount amount</b> (2.93× the clustered average). Clicks, visits and spend are 1.29–1.36×, and the other two features differ little.</p>
+  <div class="card">
+    <h4>Review queue: the 10 most isolated accounts</h4>
+    <p class="cap">124 accounts in total. Sorted by isolation score; click a column heading's feature in the selector to rank by it instead.</p>
+    <div class="ctrls" style="grid-template-columns:1fr"><label>Sort by <select id="rqS"></select></label></div>
+    <div class="tw"><table class="heat" id="rqT"></table></div>
+  </div>
+  <div class="call"><b>Noise does not mean fraud.</b> An account can be far from everyone for harmless reasons, for instance a very big genuine spender. The list is a <b>review queue</b>, not a verdict, and reviewers' findings should feed back into the process. Also remember that DBSCAN flags points by their <b>lack of close neighbours in all features together</b>, not by any single feature, so a one-feature explanation (such as a z-score) can mislead; reviewers need the combination as well.</div>
+
+  <h3>Placing new accounts</h3>
+  <p>DBSCAN has no <code>predict</code>. A simple, defensible rule that mirrors the algorithm's own logic:</p>
+  <ol>
+    <li>Find the new account's <b>nearest core point</b>.</li>
+    <li>If that core point is within <b>eps</b>, the account gets that core point's cluster.</li>
+    <li>Otherwise, flag it as noise for review.</li>
+  </ol>
+  <p>Try it in the playground above (<i>Place a new account</i>). To test the rule on real data, hold out 20% of customers, fit on the rest, and compare noise shares: if new customers are flagged at a rate similar to the training customers, the rule behaves consistently, and a sudden jump in the flagged share is itself an alarm that behaviour (or the bots) has changed.</p>
+  <details><summary>Code: assign new customers</summary>
+<pre>def assign_new(db, X_train, X_new, eps):
+    core_pts = X_train[db.core_sample_indices_]
+    core_lab = db.labels_[db.core_sample_indices_]
+    d = cdist(X_new, core_pts)
+    nearest = d.argmin(axis=1)
+    reachable = d[np.arange(len(X_new)), nearest] &lt;= eps
+    return np.where(reachable, core_lab[nearest], -1)</pre></details>
+</section>
+
+<section id="eval" data-t="Evaluation">
+  <div class="kick">7 · Scoring</div>
+  <h2>Evaluating a clustering that contains noise</h2>
+  <div class="grid g2">
+    <div class="mini"><span class="n">1</span><b>Do not score noise as a cluster</b>Noise is "not in a cluster". Including label −1 in a silhouette calculation treats scattered points as a tight group and distorts the score. (In this run it gave 0.261; the older script's version of this mistake gave 0.006.)</div>
+    <div class="mini"><span class="n">2</span><b>Use each metric under its own name</b>The Dunn index (higher is better) and the Davies-Bouldin index (lower is better) are different metrics.</div>
+  </div>
+  <p style="margin-top:14px">ShopSphere's result is <b>one cluster plus noise</b>, so silhouette and Davies-Bouldin, which need at least two clusters, are undefined. This is common on real data. The useful questions are practical: how many accounts were flagged, are they really different from the rest, and can the reviewers handle the volume?</p>
+  <details><summary>Code: scoring with noise handled</summary>
+<pre>ok = ~noise_mask
+if n_clusters &gt;= 2:
+    silhouette_score(X[ok], labels[ok])          # clustered points only
+    davies_bouldin_score(X[ok], labels[ok])      # lower is better
+else:
+    # One cluster plus noise: silhouette and Davies-Bouldin are undefined.
+    # Judge by the share of noise and the profile of the flagged accounts.
+    pass</pre></details>
+  <div class="q" data-q="3"></div>
+</section>
+
+<section id="limits" data-t="Limitations">
+  <div class="kick">8 · Honest limits</div>
+  <h2>Where DBSCAN struggles</h2>
+  <h3>1. Varying densities</h3>
+  <p>DBSCAN uses <b>one</b> eps and one min_samples for the whole dataset. If the data has tight clusters and loose ones, no single eps suits both: a small eps shatters the loose cluster into noise, and a large eps merges the tight clusters.</p>
+  <div class="card">
+    <h4>Two tight clusters and one loose one</h4>
+    <p class="cap">Three groups of 250 points (spreads 0.3, 0.3 and 1.6), min_samples = 8. Slide eps and watch the trade-off. Simulated live.</p>
+    <div class="seg" role="group" aria-label="Presets" id="vdP"><button data-e="0.25">eps 0.25</button><button data-e="0.6">eps 0.6</button><button data-e="1.8">eps 1.8</button></div>
+    <canvas id="cvVd" role="img" aria-label="Three groups of different density clustered by DBSCAN at the chosen eps"></canvas>
+    <div class="ctrls"><label>eps <span id="vdV"></span><input id="vdS" type="range" min="0.1" max="2.2" step="0.01" value="0.25"></label></div>
+    <div class="read" id="vdR" aria-live="polite"></div>
+  </div>
+  <ul>
+    <li><b>Small eps:</b> the tight clusters come out well, but much of the loose cluster is classed as noise.</li>
+    <li><b>Medium eps:</b> a compromise that rarely serves everyone.</li>
+    <li><b>Large eps:</b> the loose cluster is captured, but the two tight clusters merge, since the gap between them is smaller than eps.</li>
+  </ul>
+  <p><b>HDBSCAN</b> (a hierarchical extension of DBSCAN, with OPTICS as another relative) removes the single global eps by building a hierarchy over many eps values, and is the usual remedy for varying density.</p>
+  <div class="q" data-q="4"></div>
+
+  <h3>2. High dimensions</h3>
+  <p>DBSCAN depends on "close". In many dimensions, distances <b>concentrate</b>: the nearest and farthest neighbours are almost the same distance away, so there is no gap for eps to sit in. For 500 random points, the relative spread (farthest − nearest) ÷ nearest from one point:</p>
+  <div class="card">
+    <h4>Distance contrast collapses with dimension</h4>
+    <svg id="svHd" viewBox="0 0 640 250" role="img" aria-label="Bar chart on a log scale: contrast falls from 23.07 at 2 dimensions to 0.11 at 1000 dimensions" style="width:100%;height:auto"></svg>
+    <div class="read" id="hdR" aria-live="polite">Hover or tab to a bar.</div>
+  </div>
+  <p>The usual remedy is to <b>reduce dimensions first</b> (for example with PCA), then run DBSCAN on the reduced data, checking that the result is stable.</p>
+
+  <h3>3. Cost</h3>
+  <p>Each point needs a <b>range query</b>: find all points within eps. Done naively, that is a scan of all points, so O(n²) total. With a <b>spatial index</b> (KD-tree or ball tree) a range query is about O(log n) in low dimensions, so the total is about O(n log n). In high dimensions the index stops helping and cost drifts back toward O(n²).</p>
+  <div class="grid g2">
+    <div class="card" style="margin:12px 0"><h4>Measured time</h4><p class="cap">6 features, 5 blobs, eps 1.0, min_samples 12.</p>
+      <svg id="svTm" viewBox="0 0 320 230" role="img" aria-label="Line chart of DBSCAN seconds for n = 5000 to 40000" style="width:100%;height:auto"></svg></div>
+    <div class="card" style="margin:12px 0"><h4>Ratio per doubling of n</h4>
+      <div class="tw"><table class="heat"><thead><tr><th>n</th><th>seconds</th><th>vs previous</th></tr></thead><tbody><tr><td>5,000</td><td>0.189</td><td></td></tr><tr><td>10,000</td><td>0.478</td><td>2.5×</td></tr><tr><td>20,000</td><td>1.639</td><td>3.4×</td></tr><tr><td>40,000</td><td>4.672</td><td>2.9×</td></tr></tbody></table></div></div>
+  </div>
+  <p>The measured ratios of 2.5–3.4× per doubling sit below the 4× a naive O(n²) scan would give, and far better than hierarchical clustering's quadratic memory. One caution: an eps that is too large makes every neighbourhood huge, which can blow up both time and memory.</p>
+
+  <h3>4. Sensitivity and no predict</h3>
+  <p>Both were seen above: small changes in eps changed the cluster count and noise share, and new points need your own assignment rule.</p>
+  <h3>Summary</h3>
+  <div class="tw"><table><thead><tr><th>Strengths</th><th>Limitations</th></tr></thead><tbody>
+    <tr><td>Finds clusters of <b>any shape</b></td><td>One global eps and min_samples, so <b>varying densities</b> are hard</td></tr>
+    <tr><td><b>Detects noise</b> explicitly</td><td>Sensitive to the choice of eps and min_samples</td></tr>
+    <tr><td><b>No K</b> needed</td><td>Distances lose meaning in <b>high dimensions</b></td></tr>
+    <tr><td>Only two hyperparameters</td><td>No built-in <code>predict</code> for new points</td></tr>
+    <tr><td>Fast with a spatial index in low dimensions</td><td>Border points can depend on processing order</td></tr></tbody></table></div>
+</section>
+
+<section id="final" data-t="Final system">
+  <div class="kick">9 · Putting it together</div>
+  <h2>Anjali's final system</h2>
+  <p>Over three weeks, each method answered a question the previous one could not. Now she combines them.</p>
+  <div class="card">
+    <svg viewBox="0 0 700 330" role="img" aria-label="Pipeline: scale features, DBSCAN flags noise to the ranked review queue, clean customers go to the Ward tree with 3 broad and 5 fine segments, GMM gives probability blends, new accounts use the nearest-core-point rule" style="width:100%;height:auto;display:block">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#27272a"/></marker></defs>
+      <g font-family="system-ui" text-anchor="middle">
+        <rect x="10" y="125" width="120" height="70" rx="12" fill="#27272a"/><text x="70" y="153" fill="#fff" font-weight="700" font-size="14">1 · Scale</text><text x="70" y="173" fill="#e4e4e7" font-size="12">customer features</text>
+        <rect x="180" y="125" width="130" height="70" rx="12" fill="#ea580c"/><text x="245" y="153" fill="#fff" font-weight="700" font-size="14">2 · DBSCAN</text><text x="245" y="173" fill="#fff" font-size="12">flag the noise</text>
+        <rect x="380" y="20" width="170" height="70" rx="12" fill="#fff" stroke="#ea580c" stroke-width="3"/><text x="465" y="48" fill="#18181b" font-weight="700" font-size="14">Ranked review queue</text><text x="465" y="68" fill="#3f3f46" font-size="12">for Imran's team</text>
+        <rect x="380" y="125" width="150" height="70" rx="12" fill="#3f3f46"/><text x="455" y="153" fill="#fff" font-weight="700" font-size="14">3 · Ward tree</text><text x="455" y="173" fill="#e4e4e7" font-size="12">3 broad · 5 fine, nested</text>
+        <rect x="560" y="125" width="130" height="70" rx="12" fill="#52525b"/><text x="625" y="153" fill="#fff" font-weight="700" font-size="14">4 · GMM</text><text x="625" y="173" fill="#e4e4e7" font-size="12">probability blends</text>
+        <rect x="180" y="240" width="350" height="64" rx="12" fill="#fff" stroke="#27272a" stroke-width="2.5"/><text x="355" y="268" fill="#18181b" font-weight="700" font-size="14">5 · New accounts: nearest-core-point rule</text><text x="355" y="288" fill="#3f3f46" font-size="12">a segment, or a flag for review</text>
+      </g>
+      <g stroke="#27272a" stroke-width="2.5" fill="none" marker-end="url(#ar)"><path d="M130 160H178"/><path d="M310 140C340 140 340 70 378 60"/><path d="M310 160H378"/><path d="M530 160H558"/><path d="M245 195V238"/></g>
+      <text x="345" y="100" font-family="system-ui" font-size="12" fill="#c2410c" font-weight="700">noise</text><text x="344" y="152" font-family="system-ui" font-size="12" fill="#3f3f46" font-weight="700" text-anchor="end">clean</text>
+    </svg>
+  </div>
+  <p>DBSCAN flags the accounts that sit in no dense region (these go to the review queue). On the remaining customers, the Ward tree gives Vikram's broad (3) and fine (5) segments, nested. Where individual customers matter, the GMM gives probability-weighted blends like Shreya's 55/45. What does removing the flagged accounts do to the segmentation?</p>
+  <div class="stats">
+    <div class="stat"><div class="v">2,376</div><div class="l">customers in the segmentation</div></div>
+    <div class="stat"><div class="v o">124</div><div class="l">sent to review</div></div>
+    <div class="stat"><div class="v">0.62</div><div class="l">ARI between fine segmentations on shared customers</div></div>
+  </div>
+  <div class="card">
+    <h4>Silhouette on the clean customers</h4>
+    <p class="cap">Tree built with the flagged accounts vs without them (fine segments, K = 5).</p>
+    <div class="bars"><div class="row"><span>Tree with noise</span><div><div class="bar gr" style="width:92.5%"></div></div><b>0.136</b></div><div class="row"><span>Tree without noise</span><div><div class="bar" style="width:100%"></div></div><b>0.147</b></div></div>
+  </div>
+  <p>The segmentation built without the flagged accounts is slightly cleaner (0.147 vs 0.136). The agreement score of 0.62 means the fine segments change noticeably for some shared customers, so taking out the noise protects the segments while still reshaping the finest level. The nesting still holds:</p>
+  <div class="card">
+    <h4>Fine segments inside broad segments (clean customers)</h4>
+    <div class="tw"><table class="heat" id="fcT"></table></div>
+  </div>
+  <div class="card">
+    <h4>Fine segment profiles (the table category teams read)</h4>
+    <div class="tw"><table class="heat" id="fpT"></table></div>
+  </div>
+  <h3>The ending</h3>
+  <div class="story">
+    <p>Imran's team works down the ranked list for two weeks. Most of the top accounts turn out to be what he expected: resellers buying in bulk and scripted accounts clicking in robotic patterns. A few turn out to be genuine, unusually heavy buyers who simply have no peers in the data, and those go to Vikram's team as <b>premium relationships</b>, not as fraud. Imran adds the reviewers' findings back to the data, so the next round of tuning has some ground truth to learn from for the first time.</p>
+    <p>Anjali writes a short note at the top of the project:</p>
+    <blockquote>"No method found 'the' structure in ShopSphere's customers. K-Means saw round groups, GMM saw probabilities, Ward saw a tree, and DBSCAN saw density and noise. Each answered a different question. The skill is choosing the question first."</blockquote>
+  </div>
+</section>
+
+<section id="wrap" data-t="Takeaways">
+  <div class="kick">10 · Wrap-up</div>
+  <h2>Key takeaways and the clustering toolkit</h2>
+  <ul class="chk">
+    <li><b>DBSCAN</b> defines clusters as <b>dense regions</b> separated by sparse ones. It needs <code>eps</code> (radius) and <code>min_samples</code> (the count that makes a neighbourhood dense, itself included).</li>
+    <li><b>Core</b> points have at least min_samples points within eps. <b>Border</b> points are not core but lie within eps of a core point. <b>Noise</b> is neither, with label −1. All three are fully determined by the data and the two parameters.</li>
+    <li>Clusters <b>grow by density connection</b>: chains of core points. That is why DBSCAN finds <b>any shape</b> and needs <b>no K</b>.</li>
+    <li><b>min_samples</b> is typically at least d + 1, often about 2d. <b>eps</b> comes from the <b>k-distance plot</b> (the knee), checked against a <b>grid</b> of settings, because results are sensitive.</li>
+    <li><b>Evaluate carefully:</b> do not score noise as a cluster, and do not mix up the Dunn and Davies-Bouldin indices. With one cluster plus noise, judge by the noise share and the profile of the flagged points. <b>Noise is a review queue, not a verdict.</b></li>
+    <li><b>Limitations:</b> one global eps (varying densities need HDBSCAN or OPTICS), distances that lose meaning in high dimensions (reduce first), sensitivity to hyperparameters, and no <code>predict</code> (use the nearest-core-point rule).</li>
+    <li><b>Cost:</b> about O(n log n) with a spatial index in low dimensions, drifting toward O(n²) otherwise.</li>
+  </ul>
+  <h3>Which method for which question?</h3>
+  <p>Start from the <b>question</b> (probabilities? nested levels? shapes and outliers? speed at scale?), then from the <b>shape of the data</b>, then check the result with several lenses: metrics, pictures, stability, and above all domain sense.</p>
+  <div class="card">
+    <h4>Method chooser</h4>
+    <div class="ctrls" style="grid-template-columns:1fr"><label>My question is… <select id="chQ"></select></label></div>
+    <div class="read" id="chR" aria-live="polite" style="font-size:15px"></div>
+  </div>
+  <div class="tw"><table><thead><tr><th>Method</th><th>Core idea</th><th>Best when</th><th>Watch out for</th></tr></thead><tbody>
+    <tr><td><b>K-Means / K-Means++</b></td><td>Nearest centroid, minimise within-cluster squared distance</td><td>Round, similar-sized groups, large data</td><td>Must choose K, sensitive to initialisation and outliers, round shapes only</td></tr>
+    <tr><td><b>GMM</b></td><td>Mixture of Gaussians fitted by EM</td><td>You want <b>probabilities</b> and elliptical clusters</td><td>Needs K, Gaussian assumption, local optima</td></tr>
+    <tr><td><b>Hierarchical (agglomerative)</b></td><td>Merge closest groups, build a tree</td><td>You want <b>nested</b> levels, or do not know K in advance</td><td>At least quadratic memory and time, greedy merges, no <code>predict</code></td></tr>
+    <tr><td><b>DBSCAN</b></td><td>Dense regions connected by core points</td><td><b>Arbitrary shapes</b> and <b>noise</b> detection</td><td>Single global eps, sensitive parameters, high dimensions</td></tr></tbody></table></div>
+</section>
+</main>
+
+<footer><b>DBSCAN post read</b>Discovering clusters of any shape</footer>
+
+<script id="core">
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0;while(!u)u=r();const v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function distMat(P){const n=P.length,D=new Float64Array(n*n);for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const d=Math.hypot(P[i][0]-P[j][0],P[i][1]-P[j][1]);D[i*n+j]=D[j*n+i]=d}return D}
+function dbscan(D,n,eps,ms){const nb=[];for(let i=0;i<n;i++){const l=[];for(let j=0;j<n;j++)if(D[i*n+j]<=eps)l.push(j);nb.push(l)}
+ const core=nb.map(l=>l.length>=ms),lab=new Array(n).fill(-1),order=[];let c=0;
+ for(let i=0;i<n;i++){if(lab[i]!==-1||!core[i])continue;lab[i]=c;order.push(i);const q=[i];while(q.length){const p=q.pop();for(const x of nb[p]){if(lab[x]===-1){lab[x]=c;order.push(x);if(core[x])q.push(x)}}}c++}
+ const type=lab.map((l,i)=>l===-1?'noise':core[i]?'core':'border');return{lab,core,type,order,k:c,nb}}
+function kdist(D,n,ms){const out=[];for(let i=0;i<n;i++){const r=Array.from(D.subarray(i*n,i*n+n)).sort((a,b)=>a-b);out.push(r[Math.min(ms,n)-1])}return out}
+function knee(kd){const s=kd.slice().sort((a,b)=>a-b),n=s.length,mn=s[0],mx=s[n-1];let b=0,bv=-1e9;for(let i=0;i<n;i++){const v=i/(n-1)-(s[i]-mn)/(mx-mn);if(v>bv){bv=v;b=i}}return s[b]}
+function kmeans(X,k,restarts,seed){const r=rng(seed);let best=null;for(let t=0;t<restarts;t++){let cen=[X[Math.floor(r()*X.length)].slice()];while(cen.length<k){const d=X.map(p=>Math.min(...cen.map(c=>(p[0]-c[0])**2+(p[1]-c[1])**2)));let s=d.reduce((a,b)=>a+b,0)*r(),i=0;while(s>d[i]&&i<d.length-1){s-=d[i];i++}cen.push(X[i].slice())}
+ let lab=new Array(X.length).fill(0),inertia=0;for(let it=0;it<100;it++){let ch=false;inertia=0;X.forEach((p,i)=>{let b=0,bd=1e18;cen.forEach((c,j)=>{const d=(p[0]-c[0])**2+(p[1]-c[1])**2;if(d<bd){bd=d;b=j}});inertia+=bd;if(lab[i]!==b){lab[i]=b;ch=true}});
+ cen=cen.map((c,j)=>{let sx=0,sy=0,m=0;X.forEach((p,i)=>{if(lab[i]===j){sx+=p[0];sy+=p[1];m++}});return m?[sx/m,sy/m]:c});if(!ch)break}
+ if(!best||inertia<best.inertia)best={labels:lab,centers:cen,inertia}}return best}
+function wardCut(P,K){const n=P.length,N=2*n,D=new Float64Array(N*N);for(let i=0;i<n;i++)for(let j=0;j<n;j++){const d=Math.hypot(P[i][0]-P[j][0],P[i][1]-P[j][1]);D[i*N+j]=d*d}
+ let act=[...Array(n).keys()];const size=new Array(N).fill(1),mem=[];for(let i=0;i<n;i++)mem[i]=[i];const lab=[...Array(n).keys()];
+ for(let m=0;m<n-K;m++){let bi=-1,bj=-1,bd=Infinity;for(let x=0;x<act.length;x++){const ax=act[x]*N;for(let y=x+1;y<act.length;y++){const d=D[ax+act[y]];if(d<bd){bd=d;bi=act[x];bj=act[y]}}}
+  const c=n+m;for(const k of act){if(k===bi||k===bj)continue;const dak=D[bi*N+k],dbk=D[bj*N+k],na=size[bi],nb=size[bj],nk=size[k];D[c*N+k]=D[k*N+c]=((na+nk)*dak+(nb+nk)*dbk-nk*bd)/(na+nb+nk)}
+  size[c]=size[bi]+size[bj];mem[c]=mem[bi].concat(mem[bj]);const g=mem[c][0];mem[c].forEach(i=>lab[i]=g);act=act.filter(k=>k!==bi&&k!==bj);act.push(c)}
+ const m={};let k=0;return lab.map(v=>(v in m)?m[v]:(m[v]=k++))}
+function pdf2(x,y,m,c){const det=c[0][0]*c[1][1]-c[0][1]*c[0][1],dx=x-m[0],dy=y-m[1];const q=(c[1][1]*dx*dx-2*c[0][1]*dx*dy+c[0][0]*dy*dy)/det;return Math.exp(-q/2)/(2*Math.PI*Math.sqrt(det))}
+function gmm2d(X,lab,k){const n=X.length;let R=X.map((_,i)=>{const r=new Array(k).fill(0);r[lab[i]]=1;return r}),prev=-1e18,P;
+ for(let it=0;it<150;it++){P=[];for(let j=0;j<k;j++){let N=0,mx=0,my=0;for(let i=0;i<n;i++){N+=R[i][j];mx+=R[i][j]*X[i][0];my+=R[i][j]*X[i][1]}N=Math.max(N,1e-9);mx/=N;my/=N;let sxx=0,sxy=0,syy=0;for(let i=0;i<n;i++){const dx=X[i][0]-mx,dy=X[i][1]-my,w=R[i][j];sxx+=w*dx*dx;sxy+=w*dx*dy;syy+=w*dy*dy}P.push({pi:N/n,mu:[mx,my],cov:[[sxx/N+1e-4,sxy/N],[sxy/N,syy/N+1e-4]]})}
+ let ll=0;for(let i=0;i<n;i++){let t=0;const d=P.map(p=>p.pi*pdf2(X[i][0],X[i][1],p.mu,p.cov));d.forEach(v=>t+=v);t=Math.max(t,1e-300);for(let j=0;j<k;j++)R[i][j]=d[j]/t;ll+=Math.log(t)}
+ if(Math.abs(ll-prev)<1e-6)break;prev=ll}
+ return R.map(r=>r.indexOf(Math.max(...r)))}
+function mkSmall(){const r=rng(3),P=[];for(let i=0;i<60;i++)P.push([.5*gauss(r),.5*gauss(r)]);for(let i=0;i<60;i++)P.push([4+.5*gauss(r),3+.5*gauss(r)]);for(let i=0;i<12;i++)P.push([-2+8*r(),-2+8*r()]);return P}
+function mkMoons(n,seed){const r=rng(seed||3),P=[];for(let i=0;i<n/2;i++){const t=Math.PI*r();P.push([Math.cos(t)+.06*gauss(r),Math.sin(t)+.06*gauss(r)])}for(let i=0;i<n/2;i++){const t=Math.PI*r();P.push([1-Math.cos(t)+.06*gauss(r),.5-Math.sin(t)+.06*gauss(r)])}return P}
+function mkRing(n){const r=rng(5),P=[];for(let i=0;i<n/2;i++){const t=2*Math.PI*r();P.push([Math.cos(t)+.05*gauss(r),Math.sin(t)+.05*gauss(r)])}for(let i=0;i<n/2;i++){const t=2*Math.PI*r();P.push([.4*Math.cos(t)+.05*gauss(r),.4*Math.sin(t)+.05*gauss(r)])}return P}
+function mkBlobs(){const r=rng(2),C=[[-4,-3],[1,4],[5,-2]],P=[];C.forEach(c=>{for(let i=0;i<150;i++)P.push([c[0]+.6*gauss(r),c[1]+.6*gauss(r)])});for(let i=0;i<40;i++)P.push([-6+13*r(),-5+11*r()]);return P}
+function mkVar(){const r=rng(4),C=[[-3,0,.3],[0,0,.3],[7,0,1.6]],P=[];C.forEach(c=>{for(let i=0;i<250;i++)P.push([c[0]+c[2]*gauss(r),c[2]*gauss(r)])});return P}
+</script>
+
+<script>
+const $=id=>document.getElementById(id),f2=(v,d=2)=>(+v).toFixed(d);
+const PAL=['#ea580c','#27272a','#a1a1aa','#fdba74','#71717a','#c2410c','#d4d4d8','#52525b'],RED='#dc2626';
+const secs=[...document.querySelectorAll('section[data-t]')];
+$('nav').insertAdjacentHTML('beforeend',secs.map(s=>`<a href="#${s.id}">${s.dataset.t}</a>`).join(''));
+const links=[...document.querySelectorAll('nav a')];
+function onScroll(){const h=document.documentElement;$('bar').style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';let cur=secs[0].id;secs.forEach(s=>{if(s.getBoundingClientRect().top<140)cur=s.id});links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+cur))}
+addEventListener('scroll',onScroll,{passive:true});onScroll();
+const redraws=[];
+function cv(id,ar,draw){const c=$(id);const f=()=>{const w=c.parentElement.clientWidth,h=Math.round(w*ar),d=devicePixelRatio||1;c.width=w*d;c.height=h*d;c.style.height=h+'px';const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);x.clearRect(0,0,w,h);draw(x,w,h)};redraws.push(f);f();return f}
+addEventListener('resize',()=>redraws.forEach(f=>f()));
+const seg=(root,cb)=>{const bs=root.querySelectorAll('button');bs.forEach(b=>b.addEventListener('click',()=>{bs.forEach(o=>o.setAttribute('aria-pressed',o===b));cb(b)}))};
+function bounds(P,pad){let a=1e9,b=-1e9,c=1e9,d=-1e9;P.forEach(p=>{a=Math.min(a,p[0]);b=Math.max(b,p[0]);c=Math.min(c,p[1]);d=Math.max(d,p[1])});return{x0:a-pad,x1:b+pad,y0:c-pad,y1:d+pad}}
+function mapper(B,w,h,m){const s=Math.min((w-2*m)/(B.x1-B.x0),(h-2*m)/(B.y1-B.y0)),ox=(w-s*(B.x1-B.x0))/2,oy=(h-s*(B.y1-B.y0))/2;const f=p=>[ox+(p[0]-B.x0)*s,h-oy-(p[1]-B.y0)*s];f.s=s;f.inv=q=>[B.x0+(q[0]-ox)/s,B.y0+(h-oy-q[1])/s];return f}
+function cross(x,q,r){x.strokeStyle=RED;x.lineWidth=2;x.beginPath();x.moveTo(q[0]-r,q[1]-r);x.lineTo(q[0]+r,q[1]+r);x.moveTo(q[0]+r,q[1]-r);x.lineTo(q[0]-r,q[1]+r);x.stroke()}
+function plot(x,w,h,P,res,B,r,m,colorFn){const M=mapper(B,w,h,m||10);P.forEach((p,i)=>{const q=M(p),l=res.lab[i];if(l===-1){cross(x,q,r+1);return}const col=PAL[l%PAL.length];if(res.type&&res.type[i]==='border'){x.strokeStyle=col;x.lineWidth=2;x.fillStyle='#fff';x.beginPath();x.arc(q[0],q[1],r,0,6.3);x.fill();x.stroke()}else{x.fillStyle=col;x.globalAlpha=.85;x.beginPath();x.arc(q[0],q[1],r,0,6.3);x.fill();x.globalAlpha=1}});return M}
+function plotLab(x,w,h,P,lab,B,r,m){const M=mapper(B,w,h,m||6);P.forEach((p,i)=>{const q=M(p),l=lab[i];if(l===-1){cross(x,q,r+.5);return}x.fillStyle=PAL[l%PAL.length];x.globalAlpha=.85;x.beginPath();x.arc(q[0],q[1],r,0,6.3);x.fill();x.globalAlpha=1})}
+
+/* ---- playground ---- */
+const DS={small:{P:mkSmall(),e:.5,m:5,emax:1.5},moons:{P:mkMoons(300),e:.2,m:5,emax:.6},blobs:{P:mkBlobs(),e:.6,m:8,emax:1.5}};
+for(const k in DS){DS[k].D=distMat(DS[k].P);DS[k].B=bounds(DS[k].P,.4)}
+let pgD='small',pgMode='inspect',pgSel=null,pgRes=dbscan(DS.small.D,DS.small.P.length,.5,5),pgMap=null;
+const drawPg=cv('cvPg',.68,(x,w,h)=>{const d=DS[pgD];pgMap=plot(x,w,h,d.P,pgRes,d.B,4,12);
+ if(pgSel){const e=+$('pgE').value;if(pgSel.kind==='pt'){const q=pgMap(d.P[pgSel.i]);x.strokeStyle='#18181b';x.setLineDash([6,4]);x.lineWidth=1.8;x.beginPath();x.arc(q[0],q[1],e*pgMap.s,0,6.3);x.stroke();x.setLineDash([]);x.strokeStyle='#18181b';x.lineWidth=3;x.beginPath();x.arc(q[0],q[1],8,0,6.3);x.stroke()}
+  else{const q=pgMap(pgSel.pos);x.strokeStyle='#18181b';x.setLineDash([6,4]);x.lineWidth=1.8;x.beginPath();x.arc(q[0],q[1],e*pgMap.s,0,6.3);x.stroke();x.setLineDash([]);if(pgSel.near>=0){const n=pgMap(d.P[pgSel.near]);x.strokeStyle='#18181b';x.lineWidth=1.5;x.beginPath();x.moveTo(q[0],q[1]);x.lineTo(n[0],n[1]);x.stroke()}x.fillStyle='#18181b';x.save();x.translate(q[0],q[1]);x.rotate(.785);x.fillRect(-6,-6,12,12);x.restore()}}});
+function updPg(){const d=DS[pgD],e=+$('pgE').value,m=+$('pgM').value;$('pgEV').textContent=f2(e);$('pgMV').textContent=m;pgRes=dbscan(d.D,d.P.length,e,m);
+ const c=pgRes.type.filter(t=>t==='core').length,b=pgRes.type.filter(t=>t==='border').length,nz=pgRes.type.filter(t=>t==='noise').length;
+ let t=`<b>${c}</b> core · <b>${b}</b> border · <b>${nz}</b> noise · <b>${pgRes.k}</b> cluster${pgRes.k===1?'':'s'}`;
+ if(pgSel){if(pgSel.kind==='pt'){const i=pgSel.i,cnt=pgRes.nb[i].length;t+=`<br>Selected point: <b>${cnt}</b> points within eps (itself included) vs min_samples ${m} → <b>${pgRes.type[i]}</b>${pgRes.lab[i]>=0?' of cluster '+pgRes.lab[i]:''}.`}
+  else{let near=-1,bd=1e9;d.P.forEach((p,i)=>{if(pgRes.core[i]){const dd=Math.hypot(p[0]-pgSel.pos[0],p[1]-pgSel.pos[1]);if(dd<bd){bd=dd;near=i}}});pgSel.near=near;
+   t+=near<0?'<br>No core points exist at these settings, so any new account is flagged as noise.':bd<=e?`<br>New account: nearest core point is ${f2(bd)} away (≤ eps ${f2(e)}) → joins <b>cluster ${pgRes.lab[near]}</b>.`:`<br>New account: nearest core point is ${f2(bd)} away (> eps ${f2(e)}) → <b>flagged as noise</b> for review.`}}
+ $('pgR').innerHTML=t;drawPg()}
+$('pgE').addEventListener('input',updPg);$('pgM').addEventListener('input',updPg);
+seg($('pgD'),b=>{pgD=b.dataset.d;const d=DS[pgD];$('pgE').max=d.emax;$('pgE').value=d.e;$('pgM').value=d.m;pgSel=null;updPg()});
+seg($('pgMode'),b=>{pgMode=b.dataset.m;pgSel=null;updPg()});
+$('cvPg').addEventListener('click',ev=>{const c=$('cvPg'),r=c.getBoundingClientRect(),q=[ev.clientX-r.left,ev.clientY-r.top],d=DS[pgD];
+ if(pgMode==='inspect'){let b=-1,bd=1e9;d.P.forEach((p,i)=>{const s=pgMap(p),dd=Math.hypot(s[0]-q[0],s[1]-q[1]);if(dd<bd){bd=dd;b=i}});pgSel={kind:'pt',i:b}}else pgSel={kind:'new',pos:pgMap.inv(q),near:-1};updPg()});
+updPg();
+
+/* ---- growth ---- */
+const GM=DS.moons.P,GR=dbscan(DS.moons.D,GM.length,.2,5);$('grS').max=GR.order.length;
+const drawGr=cv('cvGr',.62,(x,w,h)=>{const n=+$('grS').value,M=mapper(DS.moons.B,w,h,12),seen=new Set(GR.order.slice(0,n));GM.forEach((p,i)=>{const q=M(p);if(seen.has(i)){x.fillStyle=PAL[GR.lab[i]%PAL.length];x.beginPath();x.arc(q[0],q[1],4,0,6.3);x.fill()}else{x.fillStyle='#d4d4d8';x.beginPath();x.arc(q[0],q[1],3,0,6.3);x.fill()}});if(n>0&&n<=GR.order.length){const q=M(GM[GR.order[n-1]]);x.strokeStyle='#18181b';x.lineWidth=2.5;x.beginPath();x.arc(q[0],q[1],9,0,6.3);x.stroke()}});
+function updGr(){const n=+$('grS').value;$('grV').textContent=`${n} of ${GR.order.length}`;const cl=n?GR.lab[GR.order[n-1]]:-1;$('grR').innerHTML=n===0?'No point reached yet. Every point is noise until the algorithm reaches it.':`Latest point reached belongs to <b>cluster ${cl}</b>. The stain spreads outward through dense neighbours; points never reached stay grey (noise): <b>${GM.length-GR.order.length}</b> of ${GM.length}.`;drawGr()}
+let grT=null;$('grS').addEventListener('input',updGr);$('grReset').addEventListener('click',()=>{clearInterval(grT);grT=null;$('grPlay').textContent='▶ Play';$('grS').value=0;updGr()});
+$('grPlay').addEventListener('click',()=>{if(grT){clearInterval(grT);grT=null;$('grPlay').textContent='▶ Play';return}if(+$('grS').value>=GR.order.length)$('grS').value=0;$('grPlay').textContent='❚❚ Pause';grT=setInterval(()=>{const v=+$('grS').value+3;if(v>=GR.order.length){$('grS').value=GR.order.length;clearInterval(grT);grT=null;$('grPlay').textContent='▶ Play'}else $('grS').value=v;updGr()},60)});updGr();
+
+/* ---- worked example ---- */
+const WK=[{lab:{},t:'Start: every point is labelled −1 (noise) until reached. Points 1 and 2 are the only core points.',q:'[]'},{lab:{},t:'i = 0: not core, so skip. Border points and noise cannot start a cluster.',q:'[]'},{lab:{1:0},t:'i = 1: core and unlabelled, so start cluster 0. labels[1] = 0, queue = [1].',q:'[1]'},{lab:{0:0,1:0,2:0},t:'Pop 1. Neighbours 0, 1, 2: point 0 joins (not core, not queued); point 2 joins (core, so it is queued). queue = [2].',q:'[2]',pop:1},{lab:{0:0,1:0,2:0,3:0},t:'Pop 2. Neighbours 1, 2, 3: point 3 joins (not core). The queue is now empty.',q:'[]',pop:2},{lab:{0:0,1:0,2:0,3:0},t:'Cluster 0 is done. i = 2 and 3 are already labelled; i = 10 is not core, so it keeps −1: noise.',q:'[]'}];
+const WP=[0,1,2,3,10];
+const drawWk=cv('cvWk',.3,(x,w,h)=>{const s=+$('wkS').value,st=WK[s],m=40,X=v=>m+v/10*(w-2*m),y=h*.58,sc=(w-2*m)/10;x.strokeStyle='#a1a1aa';x.lineWidth=1.5;x.beginPath();x.moveTo(m-10,y);x.lineTo(w-m+10,y);x.stroke();
+ if(st.pop!==undefined){x.strokeStyle='#18181b';x.setLineDash([6,4]);x.lineWidth=1.8;x.beginPath();x.arc(X(WP[st.pop]),y,1.5*sc,0,6.3);x.stroke();x.setLineDash([])}
+ WP.forEach((v,i)=>{const lab=st.lab[i]!==undefined?st.lab[i]:-1,core=i===1||i===2,fin=s>=5;x.fillStyle=lab>=0?PAL[0]:'#fff';x.strokeStyle=lab>=0?PAL[0]:RED;x.lineWidth=3;x.beginPath();x.arc(X(v),y,14,0,6.3);x.fill();if(lab<0){cross(x,[X(v),y],8)}else{x.stroke()}
+  if(lab>=0&&!core&&s>=3&&(i===0||i===3)){x.fillStyle='#fff';x.beginPath();x.arc(X(v),y,9,0,6.3);x.fill()}
+  x.fillStyle='#18181b';x.font='bold 13px system-ui';x.textAlign='center';x.fillText(v,X(v),y+36);if(s>=5||(s>=2&&lab>=0)){x.font='11px system-ui';x.fillStyle='#62626b';x.fillText(lab>=0?(core?'core':'border'):'noise',X(v),y-26)}})});
+function updWk(){const s=+$('wkS').value;$('wkV').textContent=s+' of 5';$('wkR').innerHTML=`${WK[s].t}<br><span style="color:var(--muted)">queue: ${WK[s].q}</span>`;drawWk()}
+$('wkS').addEventListener('input',updWk);updWk();
+
+/* ---- method grid ---- */
+(function(){const sets=[['Moons',mkMoons(500,0),2,{eps:.2,ms:5}],['Ring + core',mkRing(500),2,{eps:.18,ms:5}],['Blobs + noise',mkBlobs(),3,{eps:.6,ms:8}]],names=['K-Means','Ward','GMM','DBSCAN'];let html='';
+ sets.forEach((s,si)=>{html+=`<h5>${s[0]}</h5>`+names.map(m=>`<figure><canvas id="lg${si}${m}" role="img" aria-label="${s[0]} clustered by ${m}"></canvas><figcaption id="lc${si}${m}"></figcaption></figure>`).join('')});$('lg').innerHTML=html;
+ sets.forEach((s,si)=>{const P=s[1],k=s[2],B=bounds(P,.3),km=kmeans(P,k,10,0).labels,res={'K-Means':km,'Ward':wardCut(P,k),'GMM':gmm2d(P,km,k),'DBSCAN':dbscan(distMat(P),P.length,s[3].eps,s[3].ms).lab};
+  names.forEach(m=>{const lab=res[m],nz=lab.filter(v=>v===-1).length;$('lc'+si+m).innerHTML=`<b>${m}</b>${m==='DBSCAN'?`: ${Math.max(...lab)+1} clusters, ${nz} noise`:''}`;cv('lg'+si+m,1,(x,w,h)=>plotLab(x,w,h,P,lab,B,2.4,6))})})})();
+
+/* ---- k-distance explorer ---- */
+const KB=DS.blobs;let kdCache={};
+const kdFor=m=>kdCache[m]||(kdCache[m]=kdist(KB.D,KB.P.length,m));
+const drawKd=cv('cvKd',.85,(x,w,h)=>{const kd=kdFor(+$('kdM').value).slice().sort((a,b)=>a-b),mx=Math.max(...kd)*1.05,m={l:40,r:10,t:12,b:28},X=i=>m.l+i/(kd.length-1)*(w-m.l-m.r),Y=v=>h-m.b-v/mx*(h-m.b-m.t),e=+$('kdE').value;
+ x.strokeStyle='#e4e4e7';x.fillStyle='#62626b';x.font='11px system-ui';x.textAlign='right';for(let g=0;g<=4;g++){const v=mx*g/4;x.beginPath();x.moveTo(m.l,Y(v));x.lineTo(w-m.r,Y(v));x.stroke();x.fillText(v.toFixed(1),m.l-5,Y(v)+4)}x.textAlign='center';x.fillText('points, sorted',(w+m.l)/2,h-6);
+ x.beginPath();kd.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));x.strokeStyle='#27272a';x.lineWidth=2.5;x.stroke();x.strokeStyle=PAL[0];x.setLineDash([6,4]);x.lineWidth=2;x.beginPath();x.moveTo(m.l,Y(e));x.lineTo(w-m.r,Y(e));x.stroke();x.setLineDash([])});
+const drawKs=cv('cvKs',.85,(x,w,h)=>{const r=dbscan(KB.D,KB.P.length,+$('kdE').value,+$('kdM').value);plotLab(x,w,h,KB.P,r.lab,KB.B,2.6,8)});
+function updKd(){const m=+$('kdM').value,e=+$('kdE').value,r=dbscan(KB.D,KB.P.length,e,m),nz=r.lab.filter(v=>v===-1).length;$('kdMV').textContent=m;$('kdEV').textContent=f2(e);
+ $('kdR').innerHTML=`Knee heuristic: eps ≈ <b>${f2(knee(kdFor(m)))}</b>. At eps = ${f2(e)}: <b>${r.k}</b> cluster${r.k===1?'':'s'}, <b>${nz}</b> noise points (${f2(nz/KB.P.length*100,1)}%).`;drawKd();drawKs()}
+$('kdM').addEventListener('input',updKd);$('kdE').addEventListener('input',updKd);$('kdKnee').addEventListener('click',()=>{$('kdE').value=Math.min(2,knee(kdFor(+$('kdM').value))).toFixed(2);updKd()});updKd();
+
+/* ---- sensitivity grid ---- */
+(function(){const E=[.2,.3,.4,.5,.6,.8,1,1.2,1.5],M=[4,8,16],R={};M.forEach(m=>E.forEach(e=>{const r=dbscan(KB.D,KB.P.length,e,m);R[m+'_'+e]=[r.k,r.lab.filter(v=>v===-1).length/KB.P.length*100]}));
+ const tbl=(idx,fmt,bg)=>'<thead><tr><th>min_samples \\ eps</th>'+E.map(e=>`<th>${e}</th>`).join('')+'</tr></thead><tbody>'+M.map(m=>`<tr><td>${m}</td>`+E.map(e=>{const v=R[m+'_'+e][idx];return`<td style="${bg(v)}">${fmt(v)}</td>`}).join('')+'</tr>').join('')+'</tbody>';
+ $('gC').innerHTML=tbl(0,v=>v,v=>`background:rgba(39,39,42,${(.05+Math.min(v,10)/10*.6).toFixed(2)});${v>=6?'color:#fff;font-weight:700':''}`);
+ $('gN').innerHTML=tbl(1,v=>v.toFixed(0),v=>`background:rgba(234,88,12,${(.05+Math.min(v,60)/60*.8).toFixed(2)});${v>=40?'color:#fff;font-weight:700':''}`)})();
+
+/* ---- ShopSphere tables ---- */
+const FEAT=['n_clicks','n_visits','amount_spent','amount_discount','days_since_registration','profile_information'];
+const CL=[401.52,93.04,1424.86,354.61,199.61,200.39],FL=[545.89,121.98,1832.76,1038.06,227.08,213.52],RT=[1.36,1.31,1.29,2.93,1.14,1.07];
+$('cmpB').innerHTML=FEAT.map((f,i)=>`<div class="row"><span>${f}</span><div><div class="bar${RT[i]===2.93?'':' gr'}" style="width:${RT[i]/3*100}%"></div></div><b>${RT[i].toFixed(2)}×</b></div>`).join('');
+$('cmpT').innerHTML='<thead><tr><th>feature</th><th>clustered (mean)</th><th>flagged (mean)</th><th>ratio</th></tr></thead><tbody>'+FEAT.map((f,i)=>`<tr><td>${f}</td><td>${CL[i].toFixed(2)}</td><td>${FL[i].toFixed(2)}</td><td>${RT[i].toFixed(2)}</td></tr>`).join('')+'</tbody>';
+const RQ=[[2271,909,259,1141.34,875.88,36,35,2.87],[2359,1246,118,1854.27,1606.36,73,20,2.84],[2043,846,139,2950.49,2428.41,198,378,2.53],[2294,459,78,2135.92,1717.35,471,7,2.43],[34,112,41,3566.54,59.64,251,585,2.41],[1917,478,104,2685.89,2094.46,264,442,2.40],[2028,922,236,2142.97,1720.48,251,268,2.38],[2099,994,109,2216.9,1800.88,2,142,2.25],[1998,1078,59,1183.93,876.12,238,5,2.23],[2069,965,141,1672.84,1216.61,469,105,2.20]];
+const RC=['ID',...FEAT,'isolation_score'];
+$('rqS').innerHTML=RC.slice(1).map((c,i)=>`<option value="${i+1}">${c}</option>`).join('');$('rqS').value='7';
+function drawRq(){const k=+$('rqS').value,rows=RQ.slice().sort((a,b)=>b[k]-a[k]);$('rqT').innerHTML='<thead><tr>'+RC.map((c,i)=>`<th${i===k?' style="background:var(--or-l)"':''}>${c}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map((v,i)=>`<td${i===k?' style="font-weight:700;background:var(--or-xl)"':''}>${i===0?v:i===7?v.toFixed(2):(v%1?v.toFixed(2):v)}</td>`).join('')+'</tr>').join('')+'</tbody>'}
+$('rqS').addEventListener('change',drawRq);drawRq();
+const heatC=(v,mx)=>`background:rgba(234,88,12,${(.06+.8*v/mx).toFixed(2)});${v/mx>.6?'color:#fff;font-weight:700':''}`;
+const FC=[[596,0,0],[0,527,0],[0,0,431],[0,0,379],[0,0,443]];
+$('fcT').innerHTML='<thead><tr><th>fine \\ broad</th><th>0</th><th>1</th><th>2</th></tr></thead><tbody>'+FC.map((r,i)=>`<tr><td>${i}</td>`+r.map(v=>`<td style="${v?heatC(v,600):''}">${v}</td>`).join('')+'</tr>').join('')+'</tbody>';
+const FP=[[574.13,121.90,1343.68,1065.95,198.65,195.46,596],[253.93,68.16,3291.14,80.82,194.42,209.76,527],[367.26,85.92,673.91,116.29,109.72,216.24,431],[403.34,104.55,619.46,154.47,273.88,259.46,379],[376.63,80.89,733.56,126.38,231.00,129.90,443]];
+$('fpT').innerHTML='<thead><tr><th>fine</th>'+FEAT.map(c=>`<th>${c}</th>`).join('')+'<th>customers</th></tr></thead><tbody>'+FP.map((r,i)=>`<tr><td>${i}</td>`+r.map((v,j)=>`<td>${j===6?v:v.toFixed(2)}</td>`).join('')+'</tr>').join('')+'</tbody>';
+
+/* ---- varying density ---- */
+const VP=mkVar(),VD=distMat(VP),VB=bounds(VP,.5);
+const drawVd=cv('cvVd',.4,(x,w,h)=>{const r=dbscan(VD,VP.length,+$('vdS').value,8);plotLab(x,w,h,VP,r.lab,VB,3,10)});
+function updVd(){const e=+$('vdS').value,r=dbscan(VD,VP.length,e,8),nz=r.lab.filter(v=>v===-1).length;$('vdV').textContent=f2(e);$('vdR').innerHTML=`eps = ${f2(e)}: <b>${r.k}</b> cluster${r.k===1?'':'s'}, <b>${nz}</b> noise of ${VP.length} points.`;drawVd()}
+$('vdS').addEventListener('input',updVd);document.querySelectorAll('#vdP button').forEach(b=>b.addEventListener('click',()=>{$('vdS').value=b.dataset.e;updVd()}));updVd();
+
+/* ---- high dim + timing ---- */
+(function(){const d=[2,10,50,200,1000],v=[23.07,1.71,.60,.25,.11],W=640,H=250,m={l:50,r:14,t:16,b:40},Y=a=>H-m.b-(Math.log10(a)+1.2)/(Math.log10(30)+1.2)*(H-m.b-m.t);let s='';
+ [.1,1,10].forEach(a=>s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(a)}" y2="${Y(a)}" stroke="#e4e4e7"/><text x="${m.l-6}" y="${Y(a)+4}" text-anchor="end" font-family="system-ui" font-size="11" fill="#62626b">${a}</text>`);
+ d.forEach((dd,i)=>{const cx=m.l+(i+.5)/5*(W-m.l-m.r),bw=60,y0=Y(v[i]);s+=`<rect class="hd" tabindex="0" data-i="${i}" x="${cx-bw/2}" y="${y0}" width="${bw}" height="${H-m.b-y0}" rx="4" fill="${i===0?'#ea580c':'#52525b'}" aria-label="${dd} dimensions: ${v[i]}" style="cursor:pointer"/><text x="${cx}" y="${y0-6}" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="700" fill="#18181b">${v[i]}</text><text x="${cx}" y="${H-m.b+18}" text-anchor="middle" font-family="system-ui" font-size="12" fill="#3f3f46">${dd}-D</text>`});
+ s+=`<text x="12" y="${m.t+4}" font-family="system-ui" font-size="11" fill="#62626b">log scale</text>`;$('svHd').innerHTML=s;
+ document.querySelectorAll('.hd').forEach(r=>['mouseenter','focus','click'].forEach(e=>r.addEventListener(e,()=>{const i=+r.dataset.i;$('hdR').innerHTML=`<b>${d[i]} dimensions</b>: (farthest − nearest) ÷ nearest = ${v[i]}. ${i===0?'Near and far are easy to tell apart.':i===4?'Near and far are almost the same distance: no gap for eps.':''}`})))})();
+(function(){const n=[5000,10000,20000,40000],t=[.189,.478,1.639,4.672],W=320,H=230,m={l:44,r:14,t:16,b:36},X=v=>m.l+Math.log2(v/5000)/3*(W-m.l-m.r),Y=v=>H-m.b-v/5*(H-m.b-m.t);let s='';
+ [0,1.5,3,4.5].forEach(v=>s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#e4e4e7"/><text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end" font-family="system-ui" font-size="11" fill="#62626b">${v}</text>`);
+ s+=`<polyline fill="none" stroke="#27272a" stroke-width="2.5" points="${n.map((v,i)=>X(v)+','+Y(t[i])).join(' ')}"/>`+n.map((v,i)=>`<circle cx="${X(v)}" cy="${Y(t[i])}" r="6" fill="#ea580c" stroke="#c2410c" stroke-width="2"/><text x="${X(v)}" y="${H-m.b+16}" text-anchor="middle" font-family="system-ui" font-size="11" fill="#3f3f46">${v/1000}k</text>`).join('')+`<text x="6" y="12" font-family="system-ui" font-size="11" fill="#62626b">seconds</text>`;$('svTm').innerHTML=s})();
+
+/* ---- chooser ---- */
+const CH=[['I want probabilities for each customer','GMM','Mixture of Gaussians fitted by EM','You want <b>probabilities</b> and elliptical clusters','Needs K, Gaussian assumption, local optima'],['I want nested levels of detail, or do not know K','Hierarchical (agglomerative)','Merge closest groups, build a tree','You want <b>nested</b> levels, or do not know K in advance','At least quadratic memory and time, greedy merges, no predict'],['I need arbitrary shapes and to spot noise','DBSCAN','Dense regions connected by core points','<b>Arbitrary shapes</b> and <b>noise</b> detection','Single global eps, sensitive parameters, high dimensions'],['I have round, similar-sized groups in large data','K-Means / K-Means++','Nearest centroid, minimise within-cluster squared distance','Round, similar-sized groups, large data','Must choose K, sensitive to initialisation and outliers, round shapes only']];
+$('chQ').innerHTML=CH.map((c,i)=>`<option value="${i}">${c[0]}</option>`).join('');
+function updCh(){const c=CH[+$('chQ').value];$('chR').innerHTML=`<b style="font-size:17px;color:var(--or-d)">${c[1]}</b><br><b>Core idea:</b> ${c[2]}<br><b>Best when:</b> ${c[3]}<br><b>Watch out for:</b> ${c[4]}`}
+$('chQ').addEventListener('change',updCh);updCh();
+
+/* ---- quizzes ---- */
+const Q=[
+{q:"With min_samples = 4, point P has 5 points (itself included) within its eps-circle. Point Q has only 2 points (itself included) within its circle, but P is one of them. Point R has only itself inside its circle, and no core point is within eps of it. Classify P, Q and R.",o:["P core, Q border, R noise","P border, Q core, R noise","P core, Q noise, R border","All three are core points"],a:0,e:"P has 5 points, which is at least 4, so it is a core point. Q has only 2 points (fewer than 4), so it is not core, but it lies within eps of the core point P, so it is a border point. R has no dense neighbourhood and no core point nearby, so it is noise."},
+{q:"Core points A and B are 5 × eps apart. Between them is a chain of core points C1, C2, C3, ... where each is within eps of the next. Are A and B in the same cluster?",o:["No, because they are farther apart than eps","Yes, because they are density-connected through the chain of core points","No, because DBSCAN allows only one core point per cluster","Only if they are both border points"],a:1,e:"DBSCAN does not require every pair in a cluster to be within eps of each other. It only requires a chain of core points where each step is within eps. That chain makes A and B density-connected, so they belong to the same cluster. This is also why a DBSCAN cluster can be long and curved."},
+{q:"The sorted k-distance plot rises very slowly for 95% of the customers and then shoots upward for the last 5%. How should you choose eps, and what do the last 5% represent?",o:["Choose eps at the maximum value, so it covers every point; the last 5% are the best customers","Choose eps at the very smallest value, so that every single point becomes a core point","Choose eps near the bend; the customers beyond it have no dense neighbourhood and are likely noise","The k-distance plot cannot be used to choose eps, because it only describes the distances"],a:2,e:"Below the bend, most points have enough close neighbours to be core. Beyond it, the k-distance jumps, which is the signature of isolated points. Picking the maximum would make eps so big that everything merges, and the smallest value would make almost nothing core."},
+{q:"With eps and min_samples fixed, can you determine in advance exactly which points will be noise?",o:["Yes, noise is whatever is neither core nor border; only a border point's cluster may vary","No, because noise points are chosen randomly by the algorithm each time it runs","Yes, but only if you also fix the number of clusters before running the algorithm","No, because DBSCAN needs a value of K in order to define which points are noise"],a:0,e:"A point is core if its eps-neighbourhood holds at least min_samples points. It is border if it is not core but is within eps of a core point. Everything else is noise. All of that depends only on the data, eps and min_samples. The one tiny ambiguity is for border points in reach of two clusters, which join whichever claims them first."},
+{q:"ShopSphere's data has a very tight group of regular grocery shoppers and a much more spread-out group of occasional big-ticket buyers. One DBSCAN run either turns most occasional buyers into noise, or merges the grocery sub-groups. What explains this, and what could Anjali try?",o:["It is a bug in DBSCAN, so she should restart the kernel and run the code again","The data has no real structure, so no clustering method could find groups in it","The value of min_samples must always be set equal to eps for the method to work","DBSCAN uses one eps for all regions, so she could try HDBSCAN, OPTICS or separate runs"],a:3,e:"DBSCAN's definition of density is global: one eps, one min_samples. Groups of very different density cannot be served by the same pair. Methods that vary the density threshold (HDBSCAN, OPTICS), or a two-stage approach, are the standard answers."}];
+document.querySelectorAll('.q').forEach(el=>{const d=Q[+el.dataset.q];
+ el.innerHTML=`<div class="qh">Check your understanding</div><p class="qt">${d.q}</p><div class="opts" role="group" aria-label="Answer choices">${d.o.map((t,i)=>`<button class="o" data-i="${i}">${t}</button>`).join('')}</div><div class="fb" aria-live="polite"></div>`;
+ el.querySelectorAll('.o').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;el.querySelectorAll('.o').forEach(o=>{o.disabled=true;if(+o.dataset.i===d.a)o.classList.add('ok')});if(i!==d.a)b.classList.add('bad');const fb=el.querySelector('.fb');fb.style.display='block';fb.innerHTML=`<b>${i===d.a?'Correct.':'Not quite.'}</b> ${i===d.a?'':'The right answer is highlighted. '}${d.e}`}))});
+</script>
+</body>
+</html>
